@@ -1,0 +1,32 @@
+dframe.select(f.explode(f.col(cls.entity_path)).alias("entity"))
+            .select(
+                f.size(f.col("entity.attributes.address")).alias("addresses"),
+                f.expr(
+                    "SIZE(FILTER(entity.attributes.address, attr -> attr.x is not null))"
+                ).alias("geocoded_addresses"),
+            )
+            .agg(
+                f.sum(f.col("geocoded_addresses")).alias("total_geocoded_attributes"),
+                f.sum(f.col("addresses")).alias("total_address_count"),
+                f.count(f.when(f.col("geocoded_addresses") > 0, 1).otherwise(0)).alias(
+                    "total_geocoded_entities"
+                ),
+                f.count("*").alias("total_entities"),
+            )
+and here's some scala spark code
+    components
+      .select(
+        f.expr("ARRAY_DISTINCT(TRANSFORM(sources, s -> REGEXP_EXTRACT(s, '^([A-Z]{3})/.*', 1)))")
+          .as("countries"),
+        f.col("label")
+      )
+      .select(
+        f.explode(f.col("countries")).as("country"),
+        f.col("label")
+      )
+      .groupBy(f.col("country"))
+      .agg(
+        f.count(f.col("*")).as("count"),
+        f.first(f.col("label")).as("sample_label")
+      )
+      .orderBy(f.col("count").desc)
